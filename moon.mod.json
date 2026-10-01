@@ -1,0 +1,10 @@
+{
+  "name": "logicore-code/moon-agent-reactor",
+  "version": "0.1.0",
+  "description": "ReAct-pattern AI Agent runtime for MoonBit - autonomous agents with tool calling, memory, and composable reasoning",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/logicore-code/moon-agent-reactor",
+  "keywords": ["ai-agent", "react", "llm", "tool-calling", "autonomous", "reasoning"],
+  "readme": "README.md",
+  "src": "src"
+}
