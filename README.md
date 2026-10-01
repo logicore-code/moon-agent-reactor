@@ -113,7 +113,30 @@ fn main {
 | ReAct 模式 | ✅ 原生支持 | ❌ | ✅ |
 | 工具调用 | ✅ 类型安全 | 有限 | ✅ |
 | Memory 系统 | ✅ 内置 | ❌ | 通过插件 |
+| 任务规划 | ✅ DAG 依赖图 | ❌ | ❌ |
 | WASM 输出 | ✅ 原生支持 | ❌ | ❌ |
+
+## 使用真实 LLM
+
+```moonbit
+use "llm/openai_compat"
+
+fn main {
+  // 方式 1: Ollama 本地部署 (免费)
+  let llm = ollama_provider("llama3.2")
+  
+  // 方式 2: OpenAI API
+  // let llm = OpenAIProvider::from_env()
+  
+  let registry = create_tool_registry()
+  let engine = ReactEngine::new(default_config(), registry, llm)
+  
+  match engine.run("解释什么是量子纠缠") {
+    Ok(output) => println(output.final_answer)
+    Err(e) => println("Error: \{e}")
+  }
+}
+```
 
 ## 许可证
 
