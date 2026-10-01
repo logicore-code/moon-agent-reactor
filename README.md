@@ -70,23 +70,50 @@ moon-agent-reactor/
 // 创建一个最简单的 Agent
 use "logicore/moon-agent-reactor/src/core/react_engine"
 use "logicore/moon-agent-reactor/src/llm/mock"
+use "logicore/moon-agent-reactor/src/tools/builtin/calculator"
 
 fn main {
-  let llm = MockLLM::new([|
-    "思考: 用户问现在几点了，我需要调用 get-time 工具",
-    "行动: get-time()",
-    "观察: 当前时间 2026-10-01 12:00:00",
-    "思考: 现在我已经有了信息，可以回答了",
-    "最终答案: 现在是 2026年10月1日 12:00"
+  // 创建带计算器的工具注册表
+  let registry = Registry::new()
+  let registry = register_calculator(registry)
+  
+  // 创建 Mock LLM
+  let llm = MockProvider::new([|
+    "思考: 用户问 2+3 等于多少？需要使用 calculate 工具\n行动: calculate(2 + 3)",
+    "观察: 5",
+    "思考: 已得到结果\n最终答案: 2 + 3 = 5"
   |])
   
-  let agent = ReActAgent::new(llm)
-  match agent.run("现在几点了？") {
-    Ok(response) => println(response)
+  // 创建 ReAct 引擎
+  let engine = ReactEngine::new(default_config(), registry, llm)
+  
+  // 运行
+  match engine.run("2 + 3 等于多少？") {
+    Ok(output) => println(output.final_answer)
     Err(e) => println("Error: \{e}")
   }
 }
 ```
+
+## 示例程序
+
+| 示例 | 描述 |
+|------|------|
+| `examples/simple_agent.mbt` | 最简单的问答 Agent |
+| `examples/tool_agent.mbt` | 使用计算器工具的 Agent |
+| `examples/planning_agent.mbt` | 多步骤规划推理 Agent |
+| `examples/research_agent.mbt` | 研究型 Agent (知识存储) |
+
+## 与同类项目的区别
+
+| 特性 | MoonAgent Reactor | openseek (DeepSeek) | LangChain (Python) |
+|------|-------------------|---------------------|-------------------|
+| 语言 | 纯 MoonBit | MoonBit+DeepSeek | Python |
+| LLM后端 | 可插拔 (OpenAI/本地/任意) | 仅 DeepSeek | 可插拔 |
+| ReAct 模式 | ✅ 原生支持 | ❌ | ✅ |
+| 工具调用 | ✅ 类型安全 | 有限 | ✅ |
+| Memory 系统 | ✅ 内置 | ❌ | 通过插件 |
+| WASM 输出 | ✅ 原生支持 | ❌ | ❌ |
 
 ## 许可证
 
