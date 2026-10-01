@@ -1,0 +1,15 @@
+# MoonBit
+/target/
+*.wasm
+*.wasm.js
+.mooncakes/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
