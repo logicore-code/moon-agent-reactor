@@ -1,0 +1,4 @@
+# MoonBit ignore file
+target/
+*.wasm
+.DS_Store

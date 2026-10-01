@@ -330,17 +330,144 @@ fn ReactEngine::_parse_tool_call_from_text(
   None
 }
 
-/// 获取所有步骤的摘要
-pub fn ReactEngine::get_summary(self: ReactEngine) -> String {
-  let mut result = "=== ReAct Execution Summary ===\n"
-  for step in self.steps {
-    let type_str = match step.step_type {
-      Thought => "THINK"
-      Action => "ACTION"
-      Observation => "OBSERVE"
-      FinalAnswer => "ANSWER"
-    }
-    result = result + "[\{type_str}] \{step.content}\n"
+/// Agent 主结构 - 封装完整的 Agent 能力
+pub struct Agent {
+  engine: ReactEngine
+  name: String
+  description: String
+  tools: Registry
+  memory: ShortMemory
+  config: AgentConfig
+}
+
+pub struct AgentConfig {
+  name: String
+  description: String
+  max_iterations: Int
+  verbose: Bool
+  system_prompt: String
+}
+
+pub fn AgentConfig::new(name: String) -> AgentConfig {
+  AgentConfig[{
+    name: name,
+    description: "",
+    max_iterations: 10,
+    verbose: false,
+    system_prompt: default_system_prompt()
+  }]
+}
+
+/// 构建 Agent
+pub fn Agent::builder(name: String) -> AgentBuilder {
+  AgentBuilder::{
+    config: AgentConfig::new(name),
+    registry: Registry::new(),
+    llm: None
   }
-  result
+}
+
+pub struct AgentBuilder {
+  config: AgentConfig
+  registry: Registry
+  llm: Option[Box[LLMProvider]]
+}
+
+pub fn AgentBuilder::description(self: AgentBuilder, desc: String) -> AgentBuilder {
+  let new_config = AgentConfig[{
+    name: self.config.name,
+    description: desc,
+    max_iterations: self.config.max_iterations,
+    verbose: self.config.verbose,
+    system_prompt: self.config.system_prompt
+  }]
+  AgentBuilder[{
+    config: new_config,
+    registry: self.registry,
+    llm: self.llm
+  }]
+}
+
+pub fn AgentBuilder::max_iterations(self: AgentBuilder, max: Int) -> AgentBuilder {
+  let new_config = AgentConfig[{
+    name: self.config.name,
+    description: self.config.description,
+    max_iterations: max,
+    verbose: self.config.verbose,
+    system_prompt: self.config.system_prompt
+  }]
+  AgentBuilder[{
+    config: new_config,
+    registry: self.registry,
+    llm: self.llm
+  }]
+}
+
+pub fn AgentBuilder::llm(self: AgentBuilder, provider: Box[LLMProvider]) -> AgentBuilder {
+  AgentBuilder[{
+    config: self.config,
+    registry: self.registry,
+    llm: Some(provider)
+  }]
+}
+
+pub fn AgentBuilder::tool(
+  self: AgentBuilder,
+  name: String,
+  description: String,
+  params: Array[ToolParam],
+  executor: ToolExecutorFn
+) -> AgentBuilder {
+  let new_registry = self.registry.register(name, description, params, "", executor)
+  AgentBuilder[{
+    config: self.config,
+    registry: new_registry,
+    llm: self.llm
+  }]
+}
+
+pub fn AgentBuilder::build(self: AgentBuilder) -> Result[Agent, String] {
+  let llm = match self.llm {
+    Some(provider) => provider,
+    None => return Err("LLM provider is required")
+  }
+  
+  let react_config = ReactConfig[{
+    max_iterations: self.config.max_iterations,
+    system_prompt: self.config.system_prompt,
+    stop_on_error: false,
+    verbose: self.config.verbose
+  }]
+  
+  Ok(Agent{
+    engine: ReactEngine::new(react_config, self.registry, llm),
+    name: self.config.name,
+    description: self.config.description,
+    tools: self.registry,
+    memory: ShortMemory::new(50),
+    config: self.config
+  })
+}
+
+/// Agent 运行入口
+pub fn Agent::run(self: Agent, input: String) -> Result[AgentResponse, String] {
+  match self.engine.run(input) {
+    Ok(output) => {
+      Ok(AgentResponse[{
+        content: output.final_answer,
+        iterations: output.iterations_used,
+        steps: output.steps,
+        agent_name: self.name
+      }])
+    }
+    Err(e) => Err(e)
+  }
+}
+
+/// Agent 响应
+pub struct AgentResponse {
+  content: String,
+  iterations: Int,
+  steps: Array[ReactStep],
+  agent_name: String
 }
